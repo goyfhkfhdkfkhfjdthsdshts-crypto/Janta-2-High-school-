@@ -1,0 +1,58 @@
+name: Build and Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: "cloudflare-pages-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build Next.js static export for Cloudflare Pages
+        env:
+          CF_PAGES: "1"
+          CLOUDFLARE_PAGES: "true"
+          STATIC_EXPORT: "true"
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || '' }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || '' }}
+        run: npm run build:cloudflare
+
+      - name: Verify build output
+        run: |
+          test -f out/index.html
+          test -f out/mcq/index.html
+          ls -la out
+
+      - name: Deploy to Cloudflare Pages
+        if: github.event_name != 'pull_request' && secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy out --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME || 'janta-high-school-khalari' }}

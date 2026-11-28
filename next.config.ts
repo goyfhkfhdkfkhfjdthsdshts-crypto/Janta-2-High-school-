@@ -3,15 +3,22 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next/constants';
 
 const nextConfig = (phase: string): NextConfig => {
   const isDev = phase === PHASE_DEVELOPMENT_SERVER;
+  const isCloudflarePages =
+    process.env.CF_PAGES === '1' ||
+    process.env.CF_PAGES === 'true' ||
+    process.env.CLOUDFLARE_PAGES === 'true';
+  const isGitHubPages = process.env.GITHUB_PAGES === 'true';
   const isExport =
-    process.env.GITHUB_PAGES === 'true' ||
+    isCloudflarePages ||
+    isGitHubPages ||
     process.env.STATIC_EXPORT === 'true' ||
     process.env.NEXT_EXPORT === 'true';
 
-  // Determine repository base path for GitHub Pages (e.g., /repo-name)
-  // When deploying to https://<username>.github.io/<repo-name>/, basePath is required.
+  // Determine repository base path ONLY for GitHub Pages subpath deployments
+  // (https://<username>.github.io/<repo-name>/).
+  // Cloudflare Pages (*.pages.dev) always serves at root '/' even when built in GitHub Actions.
   let repoName = '';
-  if (process.env.GITHUB_REPOSITORY) {
+  if (isGitHubPages && !isCloudflarePages && process.env.GITHUB_REPOSITORY) {
     const parts = process.env.GITHUB_REPOSITORY.split('/');
     const repo = parts[1];
     // If repository is username.github.io, it is served at root domain, so basePath is ''
@@ -20,14 +27,17 @@ const nextConfig = (phase: string): NextConfig => {
     }
   }
 
-  const rawBasePath =
-    process.env.ACTIONS_PAGES_BASE_PATH ||
-    process.env.NEXT_PUBLIC_BASE_PATH ||
-    process.env.BASE_PATH ||
-    (isExport ? repoName : '');
-  const basePath = rawBasePath && rawBasePath !== '/' 
-    ? (rawBasePath.startsWith('/') ? rawBasePath : `/${rawBasePath}`).replace(/\/$/, '') 
-    : '';
+  const rawBasePath = isCloudflarePages
+    ? process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || ''
+    : process.env.ACTIONS_PAGES_BASE_PATH ||
+      process.env.NEXT_PUBLIC_BASE_PATH ||
+      process.env.BASE_PATH ||
+      (isGitHubPages ? repoName : '');
+
+  const basePath =
+    rawBasePath && rawBasePath !== '/'
+      ? (rawBasePath.startsWith('/') ? rawBasePath : `/${rawBasePath}`).replace(/\/$/, '')
+      : '';
 
   // Base44 preview sandbox: Next.js gates dev assets and HMR by request origin.
   // The preview is served from the public proxy host, so allow that origin only
@@ -43,7 +53,7 @@ const nextConfig = (phase: string): NextConfig => {
 
   return {
     ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
-    // Enable static export when building for GitHub Pages or static hosting
+    // Enable static export when building for Cloudflare Pages, GitHub Pages, or static hosting
     ...(isExport
       ? {
           output: 'export' as const,
@@ -57,10 +67,10 @@ const nextConfig = (phase: string): NextConfig => {
         }),
     reactStrictMode: true,
     eslint: {
-      ignoreDuringBuilds: true,
+      ignoreDuringBuilds: false,
     },
     typescript: {
-      ignoreBuildErrors: isExport,
+      ignoreBuildErrors: false,
     },
     images: {
       unoptimized: isExport,

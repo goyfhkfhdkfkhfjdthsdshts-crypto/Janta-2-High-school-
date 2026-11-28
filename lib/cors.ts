@@ -61,12 +61,17 @@ export function isAllowedOrigin(origin: string | null | undefined): boolean {
       return true;
     }
 
-    // 6. Firebase Hosting domains
+    // 6. Cloudflare Pages & Workers domains
+    if (hostname.endsWith('.pages.dev') || hostname.endsWith('.workers.dev')) {
+      return true;
+    }
+
+    // 7. Firebase Hosting domains
     if (hostname.endsWith('.web.app') || hostname.endsWith('.firebaseapp.com')) {
       return true;
     }
 
-    // 7. Any HTTPS origin accessing the public school portal
+    // 8. Any HTTPS origin accessing the public school portal
     if (url.protocol === 'https:') {
       return true;
     }

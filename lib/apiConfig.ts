@@ -9,6 +9,7 @@
 
 import { UserProfile } from './types';
 import { CLASS_10_VERIFIED_MCQS } from './jacClass10McqBank';
+import { initialAboutSchoolData } from './aboutData';
 
 /**
  * Returns the effective backend root URL for API requests.
@@ -821,6 +822,157 @@ function getStaticFallback(path: string, options: RequestInit): any | null {
     }
 
     return { success: true, messages: msgs };
+  }
+
+  // About School (School Information Management) API Fallback
+  if (cleanPath === '/about' || cleanPath.startsWith('/about?')) {
+    const ABOUT_KEY = 'janta_about_school_v1';
+    let aboutData = { ...initialAboutSchoolData };
+
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(ABOUT_KEY);
+        if (raw) {
+          aboutData = { ...initialAboutSchoolData, ...JSON.parse(raw) };
+        }
+      } catch {}
+    }
+
+    const method = (options.method || 'GET').toUpperCase();
+    if ((method === 'PUT' || method === 'POST' || method === 'PATCH') && options.body) {
+      try {
+        const body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+        const { action, payload, performedBy } = body || {};
+        const actor = performedBy || 'School Administrator';
+
+        if (action === 'toggle_highlight' && payload?.highlightId) {
+          aboutData = {
+            ...aboutData,
+            highlights: (aboutData.highlights || []).map((h) =>
+              h.id === payload.highlightId ? { ...h, isFeatured: Boolean(payload.isFeatured) } : h
+            ),
+          };
+        } else if (action === 'update_facility' && payload?.facility) {
+          const list = [...(aboutData.facilities || [])];
+          const idx = list.findIndex((f) => f.id === payload.facility.id);
+          if (idx >= 0) list[idx] = payload.facility;
+          else list.push(payload.facility);
+          aboutData = { ...aboutData, facilities: list };
+        } else if (action === 'delete_facility' && payload?.facilityId) {
+          aboutData = {
+            ...aboutData,
+            facilities: (aboutData.facilities || []).filter((f) => f.id !== payload.facilityId),
+          };
+        } else if (action === 'add_photo' && payload?.photo) {
+          aboutData = {
+            ...aboutData,
+            photos: [payload.photo, ...(aboutData.photos || [])],
+          };
+        } else if (action === 'delete_photo' && payload?.photoId) {
+          aboutData = {
+            ...aboutData,
+            photos: (aboutData.photos || []).filter((p) => p.id !== payload.photoId),
+          };
+        } else if (payload && typeof payload === 'object') {
+          aboutData = { ...aboutData, ...payload };
+        }
+
+        aboutData = {
+          ...aboutData,
+          updatedAt: new Date().toISOString(),
+          updatedBy: actor,
+        };
+
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(ABOUT_KEY, JSON.stringify(aboutData));
+          } catch {}
+        }
+      } catch {
+        return { success: false, error: 'Failed to update school information' };
+      }
+    }
+
+    return { success: true, data: aboutData };
+  }
+
+  // School Contact API Fallback
+  if (cleanPath.startsWith('/data/contact')) {
+    return {
+      success: true,
+      data: {
+        schoolName: initialAboutSchoolData.schoolName,
+        address: initialAboutSchoolData.contactInfo.officialAddress,
+        phone: '+91-6531-224502',
+        email: initialAboutSchoolData.contactInfo.email,
+        officeHours: initialAboutSchoolData.contactInfo.schoolOfficeHours,
+        principalName: initialAboutSchoolData.principalMessage.name,
+        udiseCode: initialAboutSchoolData.udiseCode,
+        jacCode: initialAboutSchoolData.schoolCode,
+      },
+    };
+  }
+
+  // Faculty API Fallback
+  if (cleanPath.startsWith('/data/faculty')) {
+    return {
+      success: true,
+      data: [
+        {
+          id: 'f-1',
+          name: 'Dr. Rameshwar Mahto',
+          designation: 'Principal & Senior Educator',
+          subject: 'Administration & Education',
+          qualification: 'M.Sc. (Physics), M.Ed., Ph.D.',
+          experience: '22 Years',
+          classesTaught: 'All Classes (9-12)',
+        },
+        {
+          id: 'f-2',
+          name: 'Mr. R. K. Sharma',
+          designation: 'Senior PGT Mathematics',
+          subject: 'Mathematics',
+          qualification: 'M.Sc. (Mathematics), B.Ed.',
+          experience: '16 Years',
+          classesTaught: 'Classes 9, 10, 11, 12',
+        },
+        {
+          id: 'f-3',
+          name: 'Dr. A. K. Verma',
+          designation: 'Senior PGT Physics',
+          subject: 'Physics & Science',
+          qualification: 'M.Sc. (Physics), Ph.D.',
+          experience: '15 Years',
+          classesTaught: 'Classes 10, 11, 12',
+        },
+        {
+          id: 'f-4',
+          name: 'Mrs. S. Tirkey',
+          designation: 'PGT English',
+          subject: 'English Core & Literature',
+          qualification: 'M.A. (English), B.Ed.',
+          experience: '12 Years',
+          classesTaught: 'Classes 9, 10, 11, 12',
+        },
+      ],
+    };
+  }
+
+  // Live Sessions API Fallback
+  if (cleanPath.startsWith('/live/sessions')) {
+    return {
+      success: true,
+      sessions: [],
+    };
+  }
+
+  // Notifications API Fallback
+  if (cleanPath.startsWith('/notifications')) {
+    return {
+      success: true,
+      notifications: [],
+      unreadCount: 0,
+    };
   }
 
   return null;

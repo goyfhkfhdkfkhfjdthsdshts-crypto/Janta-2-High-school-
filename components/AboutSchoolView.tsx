@@ -6,12 +6,12 @@ import {
 } from './SchoolLogo';
 import {
   AboutSchoolData,
-  SchoolHighlightItem,
   SchoolFacilityItem,
   SchoolPhotoItem,
   UserProfile,
   FacultyMember,
 } from '@/lib/types';
+import { apiFetch } from '@/lib/apiConfig';
 import {
   ArrowLeft,
   Award,
@@ -115,11 +115,12 @@ export function AboutSchoolView({
   });
 
   const fetchAboutData = async () => {
-    setIsLoading(true);
+    if (!data) {
+      setIsLoading(true);
+    }
     try {
-      const res = await fetch('/api/about');
-      const json = await res.json();
-      if (json.success && json.data) {
+      const { res, data: json } = await apiFetch('/api/about');
+      if (res.ok && json?.success && json?.data) {
         setData(json.data);
       }
     } catch (err) {
@@ -131,9 +132,8 @@ export function AboutSchoolView({
 
   const fetchFacultyData = async () => {
     try {
-      const res = await fetch('/api/data/faculty');
-      const json = await res.json();
-      if (json.data) {
+      const { res, data: json } = await apiFetch('/api/data/faculty');
+      if (res.ok && json?.data) {
         setFaculty(json.data);
       }
     } catch (err) {
@@ -144,6 +144,7 @@ export function AboutSchoolView({
   useEffect(() => {
     fetchAboutData();
     fetchFacultyData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Toggle Highlight (Admin only)
@@ -153,17 +154,15 @@ export function AboutSchoolView({
       return;
     }
     try {
-      const res = await fetch('/api/about', {
+      const { res, data: json } = await apiFetch('/api/about', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'toggle_highlight',
           payload: { highlightId, isFeatured: !currentStatus },
           performedBy: user?.name || 'Administrator',
         }),
       });
-      const json = await res.json();
-      if (json.success && json.data) {
+      if (res.ok && json?.success && json?.data) {
         setData(json.data);
       }
     } catch (err) {
@@ -181,7 +180,7 @@ export function AboutSchoolView({
       const photoPayload: SchoolPhotoItem = {
         id: `p-${Date.now()}`,
         title: newPhoto.title || 'School Photo',
-        category: (newPhoto.category as any) || 'Campus',
+        category: (newPhoto.category as SchoolPhotoItem['category']) || 'Campus',
         imageUrl: newPhoto.imageUrl || '',
         caption: newPhoto.caption || '',
         date: new Date().toISOString().split('T')[0],
@@ -189,17 +188,15 @@ export function AboutSchoolView({
         isPublished: true,
       };
 
-      const res = await fetch('/api/about', {
+      const { res, data: json } = await apiFetch('/api/about', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'add_photo',
           payload: { photo: photoPayload },
           performedBy: user?.name || 'Administrator',
         }),
       });
-      const json = await res.json();
-      if (json.success && json.data) {
+      if (res.ok && json?.success && json?.data) {
         setData(json.data);
         setIsEditModalOpen(false);
         setNewPhoto({ title: '', category: 'Campus', imageUrl: '', caption: '', isFeatured: false });
@@ -217,17 +214,15 @@ export function AboutSchoolView({
     if (!confirm(language === 'hi' ? 'क्या आप इस फोटो को हटाना चाहते हैं?' : 'Delete this photo from school gallery?')) return;
 
     try {
-      const res = await fetch('/api/about', {
+      const { res, data: json } = await apiFetch('/api/about', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'delete_photo',
           payload: { photoId },
           performedBy: user?.name || 'Administrator',
         }),
       });
-      const json = await res.json();
-      if (json.success && json.data) {
+      if (res.ok && json?.success && json?.data) {
         setData(json.data);
       }
     } catch (err) {

@@ -77,12 +77,13 @@ Respond ONLY with valid JSON in this exact structure:
     for (const modelName of MODELS_TO_TRY) {
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
+          const isGemini4 = modelName.startsWith('gemini-4');
           const response = await ai.models.generateContent({
             model: modelName,
             contents: prompt,
             config: {
               responseMimeType: 'application/json',
-              temperature: 0.3,
+              ...(isGemini4 ? {} : { temperature: 0.3 }),
             },
           });
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, hashPassword } from '@/lib/db';
+import { db } from '@/lib/db';
 import { UserRole } from '@/lib/types';
 import { applyCors, handleCorsOptions } from '@/lib/cors';
 
